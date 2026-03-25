@@ -1,7 +1,6 @@
 package co.edu.udistrital.sumo.cliente.controlador;
 
 import co.edu.udistrital.sumo.cliente.modelo.ConexionCliente;
-import java.io.IOException;
 import javax.swing.SwingWorker;
 
 /**
@@ -19,21 +18,12 @@ public class ControlSocket {
 
     private final ControlPrincipalC cp;
 
-    /**
-     * Constructor con inyeccion del controlador principal.
-     * @param cp controlador principal del cliente
-     */
     public ControlSocket(ControlPrincipalC cp) {
         this.cp = cp;
     }
 
     /**
      * Envia los datos al servidor y espera el resultado en segundo plano.
-     * Al recibir el resultado muestra el dialogo al usuario y envia LISTO.
-     *
-     * @param mensaje datos formateados del luchador
-     * @param ip      IP del servidor
-     * @param puerto  puerto del servidor
      */
     public void enviarYEsperar(String mensaje, String ip, int puerto) {
 
@@ -51,17 +41,17 @@ public class ControlSocket {
                 // Bloquear hasta recibir el resultado
                 String resultado = cnx.recibirRespuesta();
 
-                // Mostrar resultado en el EDT y esperar que el usuario presione OK
-                boolean gano = "GANASTE".equals(resultado);
+                // Mostrar resultado segun el tipo
                 try {
-                    javax.swing.SwingUtilities.invokeAndWait(() -> cp.mostrarResultado(gano));
+                    javax.swing.SwingUtilities.invokeAndWait(
+                        () -> cp.mostrarResultado(resultado));
                 } catch (java.lang.reflect.InvocationTargetException ex) {
-                    // La vista pudo haber lanzado un error, continuamos
+                    // Error en la vista, continuamos
                 } catch (InterruptedException ex) {
                     Thread.currentThread().interrupt();
                 }
 
-                // El usuario ya presiono OK: confirmar al servidor
+                // Confirmar al servidor
                 cnx.enviar("LISTO");
                 cnx.cerrar();
                 return resultado;

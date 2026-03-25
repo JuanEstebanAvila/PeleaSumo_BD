@@ -32,26 +32,62 @@ public class Rikishi {
         this.participo   = false;
     }
 
-    public String   getNombre()                  { return nombre; }
-    public void     setNombre(String nombre)     { this.nombre = nombre; }
+    public String getNombre() {
+        return nombre;
+    }
 
-    public double   getPeso()                    { return peso; }
-    public void     setPeso(double peso)         { this.peso = peso; }
+    public void setNombre(String nombre) {
+        this.nombre = nombre;
+    }
 
-    public int      getVictorias()               { return victorias; }
-    public void     setVictorias(int v)          { this.victorias = v; }
+    public double getPeso() {
+        return peso;
+    }
 
-    public String[] getKimarites()               { return kimarites; }
-    public void     setKimarites(String[] k)     { this.kimarites = k; }
+    public void setPeso(double peso) {
+        this.peso = peso;
+    }
 
-    public boolean  isDentroDohyo()              { return dentroDohyo; }
-    public void     setDentroDohyo(boolean b)    { this.dentroDohyo = b; }
+    public int getVictorias() {
+        return victorias;
+    }
 
-    public String   getRival()                   { return rival; }
-    public void     setRival(String rival)       { this.rival = rival; }
+    public void setVictorias(int victorias) {
+        this.victorias = victorias;
+    }
 
-    public boolean  isParticipo()                { return participo; }
-    public void     setParticipo(boolean p)      { this.participo = p; }
+    public String[] getKimarites() {
+        return kimarites;
+    }
+
+    public void setKimarites(String[] kimarites) {
+        this.kimarites = kimarites;
+    }
+
+    public boolean isDentroDohyo() {
+        return dentroDohyo;
+    }
+
+    public void setDentroDohyo(boolean dentroDohyo) {
+        this.dentroDohyo = dentroDohyo;
+    }
+
+    public String getRival() {
+        return rival;
+    }
+
+    public void setRival(String rival) {
+        this.rival = rival;
+    }
+
+    public boolean isParticipo() {
+        return participo;
+    }
+
+    public void setParticipo(boolean participo) {
+        this.participo = participo;
+    }
+
 
     @Override
     public String toString() {

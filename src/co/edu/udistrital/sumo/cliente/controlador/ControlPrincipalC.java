@@ -1,16 +1,16 @@
 package co.edu.udistrital.sumo.cliente.controlador;
 
-import co.edu.udistrital.sumo.cliente.modelo.ConexionCliente;
 import co.edu.udistrital.sumo.cliente.modelo.ConexionProperties;
+
+import javax.swing.JFileChooser;
+import javax.swing.filechooser.FileNameExtensionFilter;
+import java.io.File;
 import java.io.IOException;
 import java.util.List;
 
 /**
  * Controlador principal del cliente.
  * Coordina ControlVista y ControlSocket.
- * Carga la configuracion desde el properties al inicio.
- *
- * PROHIBIDO: JFileChooser, ServerSocket, componentes Swing directos.
  *
  * @author Grupo Programacion Avanzada
  */
@@ -20,42 +20,62 @@ public class ControlPrincipalC {
     private final ControlSocket      controlSocket;
     private final ConexionProperties cnxProperties;
 
-    /**
-     * Crea los controles y muestra la vista.
-     * El JFileChooser para el properties se abre desde la vista.
-     */
     public ControlPrincipalC() {
         cnxProperties = new ConexionProperties();
+
+        String rutaCredenciales = seleccionarCredenciales();
+        if (rutaCredenciales == null) {
+            System.exit(0);
+            controlVista  = null;
+            controlSocket = null;
+            return;
+        }
+
+        try {
+            cnxProperties.cargarConfiguracion(rutaCredenciales);
+        } catch (IOException e) {
+            javax.swing.JOptionPane.showMessageDialog(null,
+                    "Error al cargar credenciales: " + e.getMessage(),
+                    "Error", javax.swing.JOptionPane.ERROR_MESSAGE);
+            System.exit(0);
+            controlVista  = null;
+            controlSocket = null;
+            return;
+        }
+
         controlVista  = new ControlVista(this);
         controlSocket = new ControlSocket(this);
     }
 
-    /**
-     * Carga los kimarites y la configuracion del socket
-     * desde el archivo properties indicado.
-     * @param ruta ruta del archivo properties
-     */
+    private String seleccionarCredenciales() {
+        JFileChooser fc = new JFileChooser(new File("Data/Cliente/"));
+        fc.setFileFilter(new FileNameExtensionFilter(
+                "Archivo de credenciales (*.properties)", "properties"));
+        fc.setDialogTitle("Seleccione las credenciales del cliente");
+        int resultado = fc.showOpenDialog(null);
+        if (resultado == JFileChooser.APPROVE_OPTION) {
+            return fc.getSelectedFile().getAbsolutePath();
+        }
+        return null;
+    }
+
     public void cargarKimarites(String ruta) {
         try {
-            cnxProperties.cargarConfiguracion(ruta);
             List<String> kimarites = cnxProperties.cargarKimarites(ruta);
             if (kimarites.isEmpty()) {
-                controlVista.mostrarMensaje("El archivo no contiene kimarites validos.");
+                controlVista.mostrarMensaje(
+                        "El archivo no contiene kimarites validos.");
                 return;
             }
             controlVista.mostrarKimarites(kimarites);
-            controlVista.mostrarEstado("Listo: " + kimarites.size() + " tecnicas cargadas.");
+            controlVista.mostrarEstado(
+                    "Listo: " + kimarites.size() + " tecnicas cargadas.");
         } catch (IOException e) {
-            controlVista.mostrarMensaje("Error al leer el archivo: " + e.getMessage());
+            controlVista.mostrarMensaje(
+                    "Error al leer el archivo: " + e.getMessage());
         }
     }
 
-    /**
-     * Valida los datos del formulario y delega la conexion al ControlSocket.
-     * @param nombre   nombre del luchador
-     * @param peso     peso del luchador
-     * @param kimarites tecnicas seleccionadas
-     */
     public void conectar(String nombre, double peso, List<String> kimarites) {
         if (nombre == null || nombre.trim().isEmpty()) {
             controlVista.mostrarMensaje("Ingrese el nombre del luchador.");
@@ -70,8 +90,8 @@ public class ControlPrincipalC {
             return;
         }
 
-        // Formatear mensaje para el servidor: nombre|peso|k1,k2,...
-        String mensaje = nombre.trim() + "|" + peso + "|" + String.join(",", kimarites);
+        String mensaje = nombre.trim() + "|" + peso + "|"
+                + String.join(",", kimarites);
 
         controlVista.habilitarConectar(false);
         controlVista.mostrarEstado("Conectando al servidor...");
@@ -80,19 +100,15 @@ public class ControlPrincipalC {
     }
 
     /**
-     * Muestra el resultado del combate en la vista.
-     * Llamado por ControlSocket cuando llega la respuesta del servidor.
-     * @param gano true si el luchador gano
+     * Muestra el resultado del combate.
+     * @param resultado "GANASTE", "PERDISTE" o "SIN_COMBATE"
      */
-    public void mostrarResultado(boolean gano) {
-        controlVista.mostrarResultado(gano);
+    public void mostrarResultado(String resultado) {
+        controlVista.mostrarResultado(resultado);
     }
 
-    /**
-     * Actualiza el texto de estado en la barra inferior de la vista.
-     * @param msg mensaje a mostrar
-     */
     public void actualizarEstado(String msg) {
-        javax.swing.SwingUtilities.invokeLater(() -> controlVista.mostrarEstado(msg));
+        javax.swing.SwingUtilities.invokeLater(
+                () -> controlVista.mostrarEstado(msg));
     }
 }

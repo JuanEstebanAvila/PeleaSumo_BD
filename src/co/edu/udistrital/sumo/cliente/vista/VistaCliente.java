@@ -18,11 +18,9 @@ import java.util.List;
  */
 public class VistaCliente extends JFrame {
 
-    // Rutas de recursos del cliente
     private static final String REC     = "Data/Cliente/Recursos/";
     private static final String BANDERA = "Data/Cliente/luchador_flag.tmp";
 
-    // Colores
     private static final Color C_ROJO  = new Color(237, 85, 90);
     private static final Color C_AZUL  = new Color(70, 130, 210);
     private static final Color C_TEXTO = new Color(25, 15, 10);
@@ -30,17 +28,16 @@ public class VistaCliente extends JFrame {
     private static final Color C_LISTA = new Color(252, 215, 215);
     private static final Color C_BLANC = Color.WHITE;
 
-    // Componentes
-    private final JTextField           txtNombre;
-    private final JTextField           txtPeso;
-    private final DefaultListModel<String> modeloLista;
-    private final JList<String>        listKimarites;
-    private final JButton              btnCargar;
-    private final JButton              btnConectar;
-    private final JLabel               lblEstado;
-    private final JFileChooser         fileChooser;
-    private final Image                imgFondo;
-    private final String               rutaLuchador;
+    private final JTextField                txtNombre;
+    private final JTextField                txtPeso;
+    private final DefaultListModel<String>  modeloLista;
+    private final JList<String>             listKimarites;
+    private final JButton                   btnCargar;
+    private final JButton                   btnConectar;
+    private final JLabel                    lblEstado;
+    private final JFileChooser              fileChooser;
+    private final Image                     imgFondo;
+    private final String                    rutaLuchador;
 
     public VistaCliente() {
         super("Combate de Sumo - Registro del Luchador");
@@ -62,16 +59,13 @@ public class VistaCliente extends JFrame {
 
         fileChooser = new JFileChooser(new File("Data/Cliente/"));
         fileChooser.setFileFilter(
-            new FileNameExtensionFilter("Archivo de propiedades (*.properties)", "properties"));
+            new FileNameExtensionFilter(
+                "Archivo de propiedades (*.properties)", "properties"));
         fileChooser.setDialogTitle("Seleccionar kimarites.properties");
 
         construirUI();
     }
 
-    /**
-     * Determina que imagen de luchador usar.
-     * Primer cliente -> Luchador1.png, segundo -> Luchador2.png.
-     */
     private String resolverImagenLuchador() {
         File bandera = new File(BANDERA);
         if (!bandera.exists()) {
@@ -90,7 +84,10 @@ public class VistaCliente extends JFrame {
                 Graphics2D g2 = (Graphics2D) g.create();
                 if (imgFondo != null)
                     g2.drawImage(imgFondo, 0, 0, getWidth(), getHeight(), this);
-                else { g2.setColor(new Color(245, 210, 200)); g2.fillRect(0, 0, getWidth(), getHeight()); }
+                else {
+                    g2.setColor(new Color(245, 210, 200));
+                    g2.fillRect(0, 0, getWidth(), getHeight());
+                }
                 g2.setColor(new Color(0, 0, 0, 55));
                 g2.fillRect(0, 0, getWidth(), getHeight());
                 g2.dispose();
@@ -148,26 +145,36 @@ public class VistaCliente extends JFrame {
 
         g.gridx = 0; g.gridy = 0; g.weightx = 0;
         campos.add(lbl("Nombre del Rikishi:"), g);
-        g.gridx = 1; campos.add(new JLabel(escalarIcono(REC + "samurai.png", 36, 36)), g);
-        g.gridx = 2; g.weightx = 1; campos.add(txtNombre, g);
+        g.gridx = 1;
+        campos.add(new JLabel(escalarIcono(REC + "samurai.png", 36, 36)), g);
+        g.gridx = 2; g.weightx = 1;
+        campos.add(txtNombre, g);
 
         g.gridx = 0; g.gridy = 1; g.weightx = 0;
         campos.add(lbl("Peso (kg):"), g);
-        g.gridx = 1; campos.add(new JLabel(escalarIcono(REC + "flor-de-cerezo.png", 36, 36)), g);
-        g.gridx = 2; g.weightx = 1; campos.add(txtPeso, g);
+        g.gridx = 1;
+        campos.add(new JLabel(escalarIcono(
+                REC + "flor-de-cerezo.png", 36, 36)), g);
+        g.gridx = 2; g.weightx = 1;
+        campos.add(txtPeso, g);
 
-        g.gridx = 0; g.gridy = 2; g.gridwidth = 1; g.insets = new Insets(14, 0, 2, 4);
-        campos.add(new JLabel(escalarIcono(REC + "gato-chino-de-la-suerte.png", 42, 42)), g);
-        g.gridx = 1; g.gridwidth = 1; g.weightx = 1; g.insets = new Insets(14, 0, 2, 4);
+        g.gridx = 0; g.gridy = 2; g.gridwidth = 1;
+        g.insets = new Insets(14, 0, 2, 4);
+        campos.add(new JLabel(escalarIcono(
+                REC + "gato-chino-de-la-suerte.png", 42, 42)), g);
+        g.gridx = 1; g.gridwidth = 1; g.weightx = 1;
+        g.insets = new Insets(14, 0, 2, 4);
         campos.add(btnCargar, g);
-        g.gridx = 2; g.weightx = 0; g.insets = new Insets(14, 4, 2, 0);
+        g.gridx = 2; g.weightx = 0;
+        g.insets = new Insets(14, 4, 2, 0);
         campos.add(new JLabel(escalarIcono(REC + "japon.png", 42, 42)), g);
 
         p.add(campos, BorderLayout.NORTH);
 
         JPanel pLista = new JPanel(new BorderLayout(0, 5));
         pLista.setOpaque(false);
-        JLabel lblTec = new JLabel("Tecnicas disponibles (Ctrl+clic para seleccionar)");
+        JLabel lblTec = new JLabel(
+                "Tecnicas disponibles (Ctrl+clic para seleccionar)");
         lblTec.setFont(new Font("Serif", Font.BOLD, 14));
         lblTec.setForeground(C_BLANC);
         pLista.add(lblTec, BorderLayout.NORTH);
@@ -196,17 +203,24 @@ public class VistaCliente extends JFrame {
             @Override protected void paintComponent(Graphics g) {
                 super.paintComponent(g);
                 Graphics2D g2 = (Graphics2D) g.create();
-                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING,
+                        RenderingHints.VALUE_ANTIALIAS_ON);
                 int w = getWidth(), h = getHeight();
-                g2.setColor(new Color(0, 0, 0, 40)); g2.fillRect(0, 0, w, h);
+                g2.setColor(new Color(0, 0, 0, 40));
+                g2.fillRect(0, 0, w, h);
                 int r = (int)(Math.min(w, h) * 0.80);
                 int ox = w / 2 - r / 2, oy = h / 2 - r / 2 + 20;
-                g2.setColor(new Color(200, 40, 40, 210)); g2.fillOval(ox, oy, r, r);
+                g2.setColor(new Color(200, 40, 40, 210));
+                g2.fillOval(ox, oy, r, r);
                 if (imgL != null) {
                     int maxW = (int)(w * 0.82), maxH = (int)(h * 0.88);
-                    double esc = Math.min((double) maxW / imgL.getWidth(null), (double) maxH / imgL.getHeight(null));
-                    int rw = (int)(imgL.getWidth(null) * esc), rh = (int)(imgL.getHeight(null) * esc);
-                    g2.drawImage(imgL, w / 2 - rw / 2, (oy + r / 2) - rh / 2 + 10, rw, rh, null);
+                    double esc = Math.min(
+                            (double) maxW / imgL.getWidth(null),
+                            (double) maxH / imgL.getHeight(null));
+                    int rw = (int)(imgL.getWidth(null) * esc);
+                    int rh = (int)(imgL.getHeight(null) * esc);
+                    g2.drawImage(imgL, w / 2 - rw / 2,
+                            (oy + r / 2) - rh / 2 + 10, rw, rh, null);
                 }
                 g2.dispose();
             }
@@ -239,7 +253,8 @@ public class VistaCliente extends JFrame {
         l.setSelectionMode(ListSelectionModel.MULTIPLE_INTERVAL_SELECTION);
         l.setBackground(C_LISTA); l.setForeground(C_TEXTO);
         l.setFont(new Font("Serif", Font.PLAIN, 13));
-        l.setSelectionBackground(C_AZUL); l.setSelectionForeground(C_BLANC);
+        l.setSelectionBackground(C_AZUL);
+        l.setSelectionForeground(C_BLANC);
         l.setFixedCellHeight(27);
         return l;
     }
@@ -256,14 +271,17 @@ public class VistaCliente extends JFrame {
 
     private JLabel lbl(String txt) {
         JLabel l = new JLabel(txt);
-        l.setFont(new Font("Serif", Font.BOLD, 15)); l.setForeground(C_BLANC);
+        l.setFont(new Font("Serif", Font.BOLD, 15));
+        l.setForeground(C_BLANC);
         return l;
     }
 
     private JLabel crearLblEstado() {
-        JLabel l = new JLabel("Seleccione el archivo de kimarites para comenzar.",
-                               SwingConstants.CENTER);
-        l.setFont(new Font("Serif", Font.BOLD, 14)); l.setForeground(C_BLANC);
+        JLabel l = new JLabel(
+                "Seleccione el archivo de kimarites para comenzar.",
+                SwingConstants.CENTER);
+        l.setFont(new Font("Serif", Font.BOLD, 14));
+        l.setForeground(C_BLANC);
         return l;
     }
 
@@ -275,7 +293,8 @@ public class VistaCliente extends JFrame {
             if (!f.exists()) return null;
             ImageIcon raw = new ImageIcon(f.getAbsolutePath());
             if (ancho == -1) return raw.getImage();
-            return raw.getImage().getScaledInstance(ancho, alto, Image.SCALE_SMOOTH);
+            return raw.getImage().getScaledInstance(ancho, alto,
+                    Image.SCALE_SMOOTH);
         } catch (Exception e) { return null; }
     }
 
@@ -286,20 +305,17 @@ public class VistaCliente extends JFrame {
 
     // --- API publica ---
 
-    /** Abre el JFileChooser y retorna la ruta del archivo seleccionado. */
     public String seleccionarProperties() {
         int r = fileChooser.showOpenDialog(this);
         return r == JFileChooser.APPROVE_OPTION
             ? fileChooser.getSelectedFile().getAbsolutePath() : null;
     }
 
-    /** Carga la lista de kimarites en el componente visual. */
     public void cargarKimarites(List<String> kimarites) {
         modeloLista.clear();
         kimarites.forEach(modeloLista::addElement);
     }
 
-    /** @return lista de kimarites seleccionados por el usuario */
     public List<String> getKimaritesSeleccionados() {
         return new ArrayList<>(listKimarites.getSelectedValuesList());
     }
@@ -309,22 +325,44 @@ public class VistaCliente extends JFrame {
 
     public void mostrarEstado(String msg) { lblEstado.setText(msg); }
 
-    /** Muestra un mensaje informativo (JOptionPane permitido para avisos). */
     public void mostrarMensaje(String msg) {
-        JOptionPane.showMessageDialog(this, msg, "Aviso", JOptionPane.INFORMATION_MESSAGE);
+        JOptionPane.showMessageDialog(this, msg, "Aviso",
+                JOptionPane.INFORMATION_MESSAGE);
     }
 
-    /** Muestra el resultado del combate y cierra la ventana. */
-    public void mostrarResultado(boolean gano) {
-        String titulo = gano ? "¡GANASTE!" : "Perdiste";
-        String msg    = gano ? "¡Felicitaciones! Tu rikishi gano el combate."
-                             : "Tu rikishi fue expulsado del dohyo.";
-        JOptionPane.showMessageDialog(this, msg, titulo,
-            gano ? JOptionPane.INFORMATION_MESSAGE : JOptionPane.WARNING_MESSAGE);
+    /**
+     * Muestra el resultado del combate segun el estado recibido.
+     * Maneja 3 estados: GANASTE, PERDISTE, SIN_COMBATE.
+     * @param resultado texto recibido del servidor
+     */
+    public void mostrarResultado(String resultado) {
+        String titulo;
+        String msg;
+        int tipo;
+
+        if ("GANASTE".equals(resultado)) {
+            titulo = "¡GANASTE!";
+            msg    = "¡Felicitaciones! Tu rikishi gano el combate.";
+            tipo   = JOptionPane.INFORMATION_MESSAGE;
+        } else if ("PERDISTE".equals(resultado)) {
+            titulo = "Perdiste";
+            msg    = "Tu rikishi fue expulsado del dohyo.";
+            tipo   = JOptionPane.WARNING_MESSAGE;
+        } else {
+            // SIN_COMBATE u otro
+            titulo = "Sin combate";
+            msg    = "Tu rikishi no fue seleccionado para combatir en este torneo.";
+            tipo   = JOptionPane.INFORMATION_MESSAGE;
+        }
+
+        JOptionPane.showMessageDialog(this, msg, titulo, tipo);
         dispose();
     }
 
-    public void setBtnConectarHabilitado(boolean h) { btnConectar.setEnabled(h); }
+    public void setBtnConectarHabilitado(boolean h) {
+        btnConectar.setEnabled(h);
+    }
+
     public JButton getBtnCargar()   { return btnCargar; }
     public JButton getBtnConectar() { return btnConectar; }
 }
