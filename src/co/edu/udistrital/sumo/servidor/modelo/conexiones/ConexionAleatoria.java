@@ -1,5 +1,6 @@
 package co.edu.udistrital.sumo.servidor.modelo.conexiones;
 
+import java.io.File;
 import java.io.IOException;
 import java.io.RandomAccessFile;
 
@@ -12,7 +13,7 @@ import java.io.RandomAccessFile;
  *   peso:      8 bytes  (double)
  *   victorias: 4 bytes  (int)
  *   resultado: 2 bytes  (char: 'G'=gano, 'P'=perdio)
- *   combate:   2 bytes  (char: numero del combate '1','2','3')
+ *   combate:   2 bytes  (char: numero del combate '1'-'9')
  *
  * PROHIBIDO: System.out, JOptionPane.
  *
@@ -25,6 +26,17 @@ public class ConexionAleatoria {
     private static final int    TAM_REG     = TAM_NOMBRE * 2 + 8 + 4 + 2 + 2; // 116
 
     /**
+     * Limpia el archivo de resultados para un nuevo torneo.
+     * Debe llamarse al inicio del servidor, antes de los combates.
+     */
+    public static void limpiar() {
+        File archivo = new File(RUTA);
+        if (archivo.exists()) {
+            archivo.delete();
+        }
+    }
+
+    /**
      * Agrega el resultado de un luchador en el archivo.
      * Los datos deben venir de la base de datos segun el enunciado.
      *
@@ -32,7 +44,7 @@ public class ConexionAleatoria {
      * @param peso      peso del luchador (de la BD)
      * @param victorias victorias acumuladas (de la BD)
      * @param gano      true si gano el combate
-     * @param numCombate numero del combate (1, 2 o 3)
+     * @param numCombate numero del combate (1, 2, 3, etc.)
      * @throws IOException si hay error de escritura
      */
     public static void guardarResultado(String nombre, double peso,
@@ -56,6 +68,11 @@ public class ConexionAleatoria {
      * @throws IOException si hay error de lectura
      */
     public static String leerTodos() throws IOException {
+        File archivo = new File(RUTA);
+        if (!archivo.exists() || archivo.length() == 0) {
+            return "";
+        }
+
         StringBuilder sb = new StringBuilder();
         try (RandomAccessFile raf = new RandomAccessFile(RUTA, "r")) {
             int total = (int)(raf.length() / TAM_REG);
@@ -77,19 +94,14 @@ public class ConexionAleatoria {
         return sb.toString();
     }
 
-    /**
-     * Escribe el nombre en exactamente TAM_NOMBRE caracteres (rellena con espacios).
-     */
-    private static void escribirNombre(RandomAccessFile raf, String nombre) throws IOException {
+    private static void escribirNombre(RandomAccessFile raf, String nombre)
+            throws IOException {
         StringBuilder sb = new StringBuilder(nombre == null ? "" : nombre);
         while (sb.length() < TAM_NOMBRE) sb.append(' ');
         String fijo = sb.substring(0, TAM_NOMBRE);
         for (char c : fijo.toCharArray()) raf.writeChar(c);
     }
 
-    /**
-     * Lee TAM_NOMBRE caracteres y retorna el nombre sin espacios finales.
-     */
     private static String leerNombre(RandomAccessFile raf) throws IOException {
         char[] chars = new char[TAM_NOMBRE];
         for (int i = 0; i < TAM_NOMBRE; i++) chars[i] = raf.readChar();

@@ -5,7 +5,7 @@ import java.util.Properties;
 
 /**
  * Carga la configuracion del servidor desde el archivo properties.
- * Delega las credenciales de BD a ConexionBD y retorna el puerto del socket.
+ * Delega las credenciales de BD a ConexionBD (Singleton) y retorna el puerto.
  *
  * Claves esperadas:
  *   PUERTO=7777
@@ -13,7 +13,7 @@ import java.util.Properties;
  *   BD.USER=root
  *   BD.PASSWORD=
  *
- * PROHIBIDO: System.out, JOptionPane, logica de negocio.
+ * PROHIBIDO: System.out, JOptionPane, logica de negocio, valores quemados.
  *
  * @author Grupo Programacion Avanzada
  */
@@ -21,7 +21,7 @@ public class ConexionProperties {
 
     /**
      * Carga las credenciales de la BD y retorna el puerto del socket.
-     * Llama a ConexionBD.cargarCredenciales() internamente.
+     * Llama a ConexionBD.getInstancia().cargarCredenciales() internamente.
      *
      * @param ruta ruta del archivo properties del servidor
      * @return puerto del servidor socket
@@ -30,12 +30,20 @@ public class ConexionProperties {
         Properties props = new Properties();
         try (FileInputStream fis = new FileInputStream(ruta)) {
             props.load(fis);
-            ConexionBD.cargarCredenciales(ruta);
-            return Integer.parseInt(props.getProperty("PUERTO", "7777").trim());
+            ConexionBD.getInstancia().cargarCredenciales(ruta);
+
+            String puertoProp = props.getProperty("PUERTO");
+            if (puertoProp == null || puertoProp.trim().isEmpty()) {
+                throw new RuntimeException("Falta la clave PUERTO en: " + ruta);
+            }
+            return Integer.parseInt(puertoProp.trim());
         } catch (NumberFormatException e) {
-            return 7777;
+            throw new RuntimeException("PUERTO no es un numero valido en: " + ruta, e);
+        } catch (RuntimeException e) {
+            throw e;
         } catch (Exception e) {
-            throw new RuntimeException("No se pudo cargar la configuracion del servidor: " + ruta, e);
+            throw new RuntimeException(
+                    "No se pudo cargar la configuracion del servidor: " + ruta, e);
         }
     }
 }

@@ -7,7 +7,7 @@ import java.sql.SQLException;
 import java.util.Properties;
 
 /**
- * Gestiona la conexion con la base de datos MySQL.
+ * Gestiona la conexion con la base de datos MySQL (Singleton).
  * Carga las credenciales desde el archivo properties del servidor.
  *
  * Claves esperadas en el properties:
@@ -21,22 +21,37 @@ import java.util.Properties;
  */
 public class ConexionBD {
 
-    private static String url;
-    private static String usuario;
-    private static String contrasena;
+    private static ConexionBD instancia;
+
+    private String url;
+    private String usuario;
+    private String contrasena;
+
+    /** Constructor privado — Singleton. */
+    private ConexionBD() {}
+
+    /**
+     * Retorna la unica instancia de ConexionBD (Singleton).
+     * @return instancia unica
+     */
+    public static synchronized ConexionBD getInstancia() {
+        if (instancia == null) {
+            instancia = new ConexionBD();
+        }
+        return instancia;
+    }
 
     /**
      * Carga las credenciales desde el archivo properties.
      * Debe llamarse antes de conectar().
-     *
      * @param ruta ruta del archivo properties del servidor
      */
-    public static void cargarCredenciales(String ruta) {
+    public void cargarCredenciales(String ruta) {
         Properties props = new Properties();
         try (FileInputStream fis = new FileInputStream(ruta)) {
             props.load(fis);
-            url       = props.getProperty("BD.URL");
-            usuario   = props.getProperty("BD.USER");
+            url        = props.getProperty("BD.URL");
+            usuario    = props.getProperty("BD.USER");
             contrasena = props.getProperty("BD.PASSWORD");
         } catch (Exception e) {
             throw new RuntimeException("No se pudo leer las credenciales: " + ruta, e);
@@ -46,12 +61,12 @@ public class ConexionBD {
     /**
      * Abre y retorna una nueva conexion a la base de datos.
      * Requiere haber llamado cargarCredenciales() primero.
-     *
      * @return conexion activa
      */
-    public static Connection conectar() {
+    public Connection conectar() {
         if (url == null) {
-            throw new IllegalStateException("Credenciales no cargadas. Llame cargarCredenciales().");
+            throw new IllegalStateException(
+                    "Credenciales no cargadas. Llame cargarCredenciales() primero.");
         }
         try {
             return DriverManager.getConnection(url, usuario, contrasena);
