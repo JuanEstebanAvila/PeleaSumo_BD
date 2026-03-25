@@ -11,6 +11,9 @@ public class Rikishi {
     private double peso;
     private int combatesGanados;
     private String[] kimarites; 
+    private Rikishi  rival;
+    private boolean  dentroDelDohyo;
+
     
     //Constructor
 
@@ -19,6 +22,7 @@ public class Rikishi {
         this.peso = peso;
         this.combatesGanados = combatesGanados;
         this.kimarites = Kimarites;
+        this.dentroDelDohyo  = false;
     }
     
     //Getters y Setters
@@ -55,4 +59,32 @@ public class Rikishi {
         this.kimarites = Kimarites;
     }
     
+    /**
+     * Retorna el luchador rival asignado para el combate actual.
+     *
+     * @return rival del luchador
+     */
+    public Rikishi getRival()                  { return rival; }
+
+    /**
+     * Asigna el luchador rival para el combate actual.
+     *
+     * @param rival luchador oponente
+     */
+    public void setRival(Rikishi rival)        { this.rival = rival; }
+
+    /**
+     * Indica si el luchador está dentro del dohyo.
+     *
+     * @return true si está dentro, false si fue expulsado
+     */
+    public boolean isDentroDelDohyo()          { return dentroDelDohyo; }
+
+    /**
+     * Actualiza el estado del luchador respecto al dohyo.
+     */
+    public void setDentroDelDohyo(boolean dentro) {
+        this.dentroDelDohyo = dentro;
+    }
 }
+    

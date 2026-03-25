@@ -1,105 +1,52 @@
-//Pase el código del anterior proyecto a este clase que controla la vista (falta arreglarlo)
 package co.edu.udistrital.sumo.cliente.controlador;
 
-import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
+import co.edu.udistrital.sumo.cliente.vista.VistaCliente;
 
 /**
+ * Controlador de vista del cliente.
  *
- * @author User
+ * Responsabilidad única: registrar los listeners desacoplados
+ * en los botones de la vista y conectarlos con el ControlPrincipalC.
+ *
+ * De esta forma ControlPrincipalC no necesita conocer los detalles
+ * de cómo están construidos los botones, y la VistaCliente no
+ * conoce al controlador directamente.
+ *
+ * Principio SOLID — S: única responsabilidad: enlazar vista y controlador.
+ *
+ * @author Grupo Programación Avanzada
+ * @version 1.0
+ * @see VistaCliente
+ * @see ControlPrincipalC
+ * @see CargarKimarites
+ * @see Conectar
  */
 public class ControlVista {
-    package co.edu.udistrital.sumo.controlador.cliente;
 
-import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
-
-/**
- * Acción desencadenada al presionar "Cargar Kimarites" en la vista del cliente.
- *
- * Propósito: Desacoplar el evento del botón de la lógica de negocio,
- * delegando completamente al {@link ControladorCliente}.
- * Cumple la separación evento/listener/performed exigida por el taller.
- * Se comunica con: {@link ControladorCliente} (único receptor de la acción).
- * Principio SOLID:
- * S — única responsabilidad: delegar la carga de kimarites al controlador.
- *
- * @author Grupo Programacióna avanzada 
- * @version 2.6
- * @see ControladorCliente
- * @see AccionConectar
- */
-public class AccionCargarKimarites implements ActionListener {
-
-    //Controlador del cliente al que se delega la acción
-    private final ControladorCliente controlador;
+    private final VistaCliente    vista;
+    private final ControlPrincipalC controlador;
 
     /**
-     * Construye la acción con referencia al controlador del cliente.
+     * Construye el controlador de vista y registra inmediatamente
+     * los listeners en los botones.
      *
-     * @param controlador controlador que gestionará la carga del archivo
+     * @param vista       vista del cliente
+     * @param controlador controlador principal del cliente
      */
-    public AccionCargarKimarites(ControladorCliente controlador) {
+    public ControlVista(VistaCliente vista, ControlPrincipalC controlador) {
+        this.vista       = vista;
         this.controlador = controlador;
+        registrarListeners();
     }
 
     /**
-     * Invocado por Swing cuando el usuario presiona el botón.
-     * Delega al controlador para obtener la ruta del archivo y cargar los kimarites.
-     *
-     * @param e evento de acción generado por el botón
+     * Asigna los listeners desacoplados a cada botón de la vista.
+     * Este método SOLO registra — no contiene lógica de negocio.
      */
-    @Override
-    public void actionPerformed(ActionEvent e) {
-        controlador.cargarKimarites();
+    private void registrarListeners() {
+        vista.getBtnCargarKimarites().addActionListener(
+            new CargarKimarites(controlador));
+        vista.getBtnConectar().addActionListener(
+            new Conectar(controlador));
     }
-}
-
-
-package co.edu.udistrital.sumo.controlador.cliente;
-
-import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
-
-/**
- * Acción desencadenada al presionar "Conectar al Servidor" en la vista del cliente.
- *
- * Propósito: Desacoplar el evento del botón de la lógica de conexión,
- * delegando completamente al {@link ControladorCliente}.
- * Cumple la separación evento/listener/performed exigida por el taller.
- * Se comunica con: {@link ControladorCliente} (único receptor de la acción).
- * Principio SOLID:
- * S — única responsabilidad: delegar la conexión al servidor al controlador.
- *
- * @author Grupo Programación avanzada
- * @version 2.2
- * @see ControladorCliente
- * @see AccionCargarKimarites
- */
-public class AccionConectar implements ActionListener {
-
-    //Controlador del cliente al que se delega la acción
-    private final ControladorCliente controlador;
-
-    /**
-     * Construye la acción con referencia al controlador del cliente.
-     *
-     * @param controlador controlador que ejecutará la lógica de conexión
-     */
-    public AccionConectar(ControladorCliente controlador) {
-        this.controlador = controlador;
-    }
-
-    /**
-     * Invocado por Swing cuando el usuario presiona el botón.
-     * Delega al controlador para validar datos e iniciar la conexión al servidor.
-     *
-     * @param e evento de acción generado por el botón
-     */
-    @Override
-    public void actionPerformed(ActionEvent e) {
-        controlador.conectarAlServidor();
-    }
-}
-
 }
