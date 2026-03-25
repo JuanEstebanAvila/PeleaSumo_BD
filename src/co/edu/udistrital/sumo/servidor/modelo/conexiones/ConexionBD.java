@@ -7,13 +7,8 @@ import java.sql.SQLException;
 import java.util.Properties;
 
 /**
- * Gestiona la conexion con la base de datos MySQL (Singleton).
+ * Gestiona la conexion con la base de datos MySQL/MariaDB (Singleton).
  * Carga las credenciales desde el archivo properties del servidor.
- *
- * Claves esperadas en el properties:
- *   BD.URL=jdbc:mysql://localhost:3306/sumo
- *   BD.USER=root
- *   BD.PASSWORD=
  *
  * PROHIBIDO: System.out, JOptionPane, logica de negocio.
  *
@@ -26,6 +21,7 @@ public class ConexionBD {
     private String url;
     private String usuario;
     private String contrasena;
+    private boolean driverCargado = false;
 
     /** Constructor privado — Singleton. */
     private ConexionBD() {}
@@ -43,7 +39,7 @@ public class ConexionBD {
 
     /**
      * Carga las credenciales desde el archivo properties.
-     * Debe llamarse antes de conectar().
+     * Tambien registra el driver JDBC explicitamente.
      * @param ruta ruta del archivo properties del servidor
      */
     public void cargarCredenciales(String ruta) {
@@ -53,6 +49,26 @@ public class ConexionBD {
             url        = props.getProperty("BD.URL");
             usuario    = props.getProperty("BD.USER");
             contrasena = props.getProperty("BD.PASSWORD");
+
+            // Registrar el driver JDBC explicitamente (requerido por mysql-connector 5.x)
+            if (!driverCargado) {
+                try {
+                    Class.forName("com.mysql.jdbc.Driver");
+                    driverCargado = true;
+                } catch (ClassNotFoundException e) {
+                    // Intentar con el driver nuevo (mysql-connector 8.x)
+                    try {
+                        Class.forName("com.mysql.cj.jdbc.Driver");
+                        driverCargado = true;
+                    } catch (ClassNotFoundException e2) {
+                        throw new RuntimeException(
+                            "No se encontro el driver JDBC de MySQL. "
+                            + "Verifique que mysql-connector-java.jar este en las librerias del proyecto.", e2);
+                    }
+                }
+            }
+        } catch (RuntimeException re) {
+            throw re;
         } catch (Exception e) {
             throw new RuntimeException("No se pudo leer las credenciales: " + ruta, e);
         }
@@ -60,7 +76,6 @@ public class ConexionBD {
 
     /**
      * Abre y retorna una nueva conexion a la base de datos.
-     * Requiere haber llamado cargarCredenciales() primero.
      * @return conexion activa
      */
     public Connection conectar() {
@@ -71,7 +86,8 @@ public class ConexionBD {
         try {
             return DriverManager.getConnection(url, usuario, contrasena);
         } catch (SQLException e) {
-            throw new RuntimeException("No se pudo conectar a la base de datos", e);
+            throw new RuntimeException("No se pudo conectar a la BD: " + url
+                    + " | Error: " + e.getMessage(), e);
         }
     }
 }

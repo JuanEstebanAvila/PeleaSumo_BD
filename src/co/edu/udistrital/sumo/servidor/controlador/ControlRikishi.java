@@ -5,51 +5,61 @@ import co.edu.udistrital.sumo.servidor.modelo.dao.RikishiDAO;
 import java.util.ArrayList;
 
 /**
- * Controla las operaciones de negocio sobre los luchadores.
- * Usa RikishiDAO para acceder a la base de datos.
- * Sin dependencias innecesarias (DIP de SOLID).
- *
+ * Controlador de operaciones sobre luchadores (MVC - Controlador de datos).
+ * 
+ * Sirve de intermediario entre ControlPrincipalS y RikishiDAO.
+ * No contiene SQL ni logica de combate — solo delega al DAO.
+ * 
+ * Principio SRP: solo operaciones de negocio sobre luchadores.
+ * No depende de ControlPrincipalS (a diferencia de versiones anteriores).
+ * 
  * @author Grupo Programacion Avanzada
  */
 public class ControlRikishi {
 
+    /** DAO que encapsula las consultas SQL a la tabla 'luchadores' */
     private final RikishiDAO dao;
 
+    /** Constructor: crea el DAO internamente */
     public ControlRikishi() {
         this.dao = new RikishiDAO();
     }
 
+    /** 
+     * Guarda un luchador en la BD.
+     * @return true si se guardo exitosamente
+     */
     public boolean guardar(Rikishi rikishi) {
         return dao.insertar(rikishi);
     }
 
-    public ArrayList<Rikishi> consultarDisponibles() {
-        return dao.consultarDisponibles();
-    }
-
+    /** Retorna todos los luchadores registrados en la BD */
     public ArrayList<Rikishi> consultarTodos() {
         return dao.consultarTodos();
     }
 
+    /** 
+     * Busca un luchador por nombre en la BD.
+     * Usado para obtener datos frescos de la BD antes de guardar en RAF.
+     * @return Rikishi encontrado o null
+     */
     public Rikishi consultarPorNombre(String nombre) {
         return dao.consultarPorNombre(nombre);
     }
 
+    /** 
+     * Actualiza el campo 'Combates ganados' en la BD.
+     * Se llama despues de cada combate para el ganador.
+     */
     public void actualizarVictorias(String nombre, int victorias) {
         dao.actualizarVictorias(nombre, victorias);
     }
 
-    public boolean incrementarVictorias(String nombre) {
-        return dao.incrementarVictorias(nombre);
-    }
-
-    public void marcarParticipo(String nombre) {
-        if (nombre != null && !nombre.isEmpty()) {
-            dao.marcarParticipo(nombre);
-        }
-    }
-
-    public int contarRegistrados() {
-        return dao.consultarTodos().size();
+    /** 
+     * Retorna el ultimo error del DAO para diagnostico.
+     * Permite al ControlPrincipalS mostrar por que fallo una operacion.
+     */
+    public String getUltimoError() {
+        return dao.getUltimoError();
     }
 }

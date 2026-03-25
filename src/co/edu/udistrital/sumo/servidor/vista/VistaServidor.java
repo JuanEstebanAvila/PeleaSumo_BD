@@ -10,7 +10,26 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Vista del servidor: muestra el dohyo, los luchadores conectados,
+ * Vista del servidor: interfaz grafica del torneo de sumo (MVC - Vista).
+ * 
+ * Esta clase SOLO se encarga de la presentacion grafica.
+ * No contiene logica de negocio, ni objetos del modelo, ni SQL.
+ * ControlVistaS delega a esta vista usando SwingUtilities.invokeLater.
+ * 
+ * Componentes principales:
+ *   - gridConectados (2x3): grilla con 6 slots que muestran los luchadores
+ *     conectandose en tiempo real. Cada slot tiene estados visuales con colores:
+ *     Vacio (gris) -> Conectado (verde) -> Combatiendo (naranja)
+ *     -> Ganador (dorado) -> Ya combatio (gris atenuado)
+ *   - panelCombate: imagen del dohyo con los dos luchadores y las tecnicas
+ *   - areaLog: JTextArea con scroll que muestra el log del combate
+ *   - lblEstado: barra de estado inferior con el estado actual
+ *   - panelGanador: panel dorado que muestra el nombre del ganador
+ * 
+ * Las imagenes de tecnicas se buscan en Data/Servidor/Imagenes_tecnicas/
+ * con extensiones .png, .jpg, .jpeg.
+ * 
+ * Muestra el dohyo, los luchadores conectados,
  * la seleccion aleatoria, el log del combate y el ganador.
  * No contiene logica de negocio ni objetos del modelo.
  *
@@ -270,6 +289,12 @@ public class VistaServidor extends JFrame {
     /**
      * Registra visualmente que un luchador se conecto al servidor.
      */
+    /**
+     * Registra visualmente un luchador conectado.
+     * Cambia el slot de "Vacio" a "Conectado" (fondo verde, borde verde).
+     * Actualiza el contador "Conectados: X / 6".
+     * Se llama desde ControlVistaS cada vez que un cliente se conecta.
+     */
     public void registrarLuchadorConectado(String nombre, double peso,
                                            int indice) {
         if (indice < 0 || indice >= MAX_LUCHADORES) return;
@@ -337,6 +362,11 @@ public class VistaServidor extends JFrame {
         setAlwaysOnTop(false);
     }
 
+    /**
+     * Muestra la imagen del kimarite ejecutado en el panel del dohyo.
+     * Busca la imagen en Data/Servidor/Imagenes_tecnicas/{nombre}.png
+     * El nombre se muestra en rojo (expulsado) o verde (resiste).
+     */
     public void mostrarKimarite(String luchador, String kimarite,
                                 boolean expulsado) {
         panelCombate.cargarKimarite(kimarite, expulsado);

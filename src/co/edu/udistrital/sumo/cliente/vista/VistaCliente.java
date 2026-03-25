@@ -10,7 +10,22 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Vista del cliente: formulario de registro del luchador.
+ * Vista del cliente: formulario de registro del luchador (MVC - Vista).
+ * 
+ * Esta clase SOLO se encarga de la presentacion grafica.
+ * No contiene logica de negocio, ni sockets, ni SQL.
+ * Todos los eventos se manejan en ControlVista (ActionListener).
+ * 
+ * Componentes principales:
+ *   - txtNombre: campo de texto para el nombre del rikishi
+ *   - txtPeso: campo de texto para el peso en kg
+ *   - listKimarites: JList multi-seleccion con las tecnicas cargadas
+ *   - btnCargar: abre JFileChooser para seleccionar kimarites.properties
+ *   - btnConectar: envia los datos al servidor y espera resultado
+ *   - fileChooser: JFileChooser configurado para archivos .properties
+ * 
+ * Resultado del combate: se muestra con JOptionPane (permitido por enunciado).
+ * Maneja 3 estados: GANASTE, PERDISTE y SIN_COMBATE con mensajes distintos.
  * Recursos en Data/Cliente/Recursos/.
  * No contiene logica de negocio ni objetos del modelo.
  *
@@ -66,6 +81,11 @@ public class VistaCliente extends JFrame {
         construirUI();
     }
 
+    /**
+     * Alterna la imagen del luchador entre Luchador1 y Luchador2
+     * usando un archivo temporal como bandera.
+     * Primer cliente -> Luchador1.png, segundo -> Luchador2.png.
+     */
     private String resolverImagenLuchador() {
         File bandera = new File(BANDERA);
         if (!bandera.exists()) {
@@ -333,6 +353,18 @@ public class VistaCliente extends JFrame {
     /**
      * Muestra el resultado del combate segun el estado recibido.
      * Maneja 3 estados: GANASTE, PERDISTE, SIN_COMBATE.
+     * @param resultado texto recibido del servidor
+     */
+    /**
+     * Muestra el resultado del combate con JOptionPane y cierra la ventana.
+     * 
+     * GANASTE -> JOptionPane.INFORMATION_MESSAGE + mensaje de felicitacion
+     * PERDISTE -> JOptionPane.WARNING_MESSAGE + mensaje de derrota
+     * SIN_COMBATE -> JOptionPane.INFORMATION_MESSAGE + no fue seleccionado
+     * 
+     * Despues de mostrar el resultado, se llama dispose() para cerrar
+     * la ventana, lo que permite al ControlSocket enviar 'LISTO' al servidor.
+     * 
      * @param resultado texto recibido del servidor
      */
     public void mostrarResultado(String resultado) {

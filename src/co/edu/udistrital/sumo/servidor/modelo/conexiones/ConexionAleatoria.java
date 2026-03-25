@@ -5,8 +5,26 @@ import java.io.IOException;
 import java.io.RandomAccessFile;
 
 /**
- * Gestiona el archivo de acceso aleatorio donde se guardan los resultados
- * de cada combate al finalizar. Usa try-with-resources en todas las operaciones.
+ * Gestiona el archivo de ACCESO ALEATORIO (RandomAccessFile) donde se
+ * guardan los resultados de cada combate (MVC - Modelo de persistencia).
+ * 
+ * REQUISITO DEL ENUNCIADO:
+ *   "El servidor almacenara los datos de los contrincantes de ese combate,
+ *   junto con el campo que los identifica como ganadores o perdedores,
+ *   y con el campo de victorias logradas, en un archivo de ACCESO ALEATORIO.
+ *   Los datos que se envian al archivo deben venir expresamente de la BD.
+ *   El campo de perdio o gano lo debe adicionar el servidor."
+ * 
+ * Cada registro tiene tamano FIJO (116 bytes) para permitir acceso aleatorio:
+ *   - Nombre:    50 chars x 2 bytes = 100 bytes (relleno con espacios)
+ *   - Peso:      double = 8 bytes
+ *   - Victorias: int = 4 bytes
+ *   - Resultado: char = 2 bytes ('G' o 'P', lo agrega el servidor)
+ *   - Combate:   char = 2 bytes (numero del combate: '1' a '5')
+ * 
+ * El metodo limpiar() se llama al inicio de cada torneo.
+ * El metodo leerTodos() se llama al FINAL, despues de que todos
+ * los clientes enviaron LISTO, y se muestra por consola.
  *
  * Estructura de cada registro (fija, 116 bytes):
  *   nombre:    50 chars x 2 bytes = 100 bytes

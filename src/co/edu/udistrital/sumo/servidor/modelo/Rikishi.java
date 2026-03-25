@@ -1,8 +1,23 @@
 package co.edu.udistrital.sumo.servidor.modelo;
 
 /**
- * Representa un luchador de sumo (Rikishi).
- * Solo guarda datos — sin logica de combate ni sincronizacion.
+ * Representa un luchador de sumo - Rikishi (MVC - Modelo).
+ * 
+ * Es un POJO (Plain Old Java Object) que solo almacena datos.
+ * No tiene logica de combate, sincronizacion, ni acceso a BD.
+ * 
+ * Se crea en dos contextos:
+ *   1. HiloLuchador.parsearRikishi(): al recibir datos del cliente via socket
+ *   2. RikishiDAO.rsARikishi(): al leer un registro de la BD
+ * 
+ * Atributos principales:
+ *   - nombre:      nombre del luchador (identificador unico)
+ *   - peso:        peso en kg
+ *   - victorias:   combates ganados (se incrementa en el Dohyo)
+ *   - kimarites:   arreglo de tecnicas en las que es experto
+ *   - dentroDohyo: true si esta actualmente en el ring
+ *   - rival:       nombre del oponente asignado en el combate actual
+ *   - participo:   true si ya combatio en el torneo (control en memoria)
  *
  * @author Grupo Programacion Avanzada
  */
