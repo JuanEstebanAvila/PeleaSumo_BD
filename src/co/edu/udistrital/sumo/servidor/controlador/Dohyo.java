@@ -8,7 +8,26 @@ import java.util.List;
 import java.util.Random;
 
 /**
- * El Dohyo ES el monitor de sincronizacion del combate.
+ * El Dohyo ES el monitor de sincronizacion del combate (MVC - Controlador de combate).
+ * 
+ * Esta es la clase mas critica para la CONCURRENCIA del proyecto.
+ * Coordina exactamente dos HiloLuchador usando synchronized + wait/notify.
+ * 
+ * COMO FUNCIONA EL COMBATE:
+ *   1. subirLuchador(): cada hilo registra su Rikishi (se llama 2 veces)
+ *   2. esperarAmbosLuchadores(): bloquea hasta que ambos esten listos
+ *   3. ejecutarTurno(): cada hilo intenta ejecutar una tecnica en su turno
+ *      - Si no es su turno, espera hasta 500ms (MAX_ESPERA_MS)
+ *      - Selecciona un kimarite ALEATORIO del arreglo del luchador
+ *      - Calcula si expulsa al oponente (5% probabilidad, solo despues de 6 turnos)
+ *      - Notifica a los observadores (ControlVistaS -> VistaServidor)
+ *   4. Cuando alguien es expulsado, combateTerminado=true y se notifica a todos
+ * 
+ * PATRON OBSERVER: notifica onKimariteEjecutado() y onCombateTerminado()
+ * a ControlVistaS, que actualiza la interfaz grafica en tiempo real.
+ * 
+ * PATRON DIP (SOLID): HiloLuchador depende de IArbitro (interfaz),
+ * no de esta clase concreta.
  * Contiene estado, logica de turnos y metodos synchronized que
  * coordinan exactamente dos HiloLuchador.
  *
