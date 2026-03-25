@@ -1,49 +1,41 @@
 package co.edu.udistrital.sumo.servidor.modelo.interfaces;
 
 /**
- * Interfaz que maneja los eventos que ocurren durante el combate.
+ * Contrato del observador de eventos del combate.
+ * Implementado por ControlVistaS para recibir notificaciones
+ * del Dohyo sin que este conozca la vista (patron Observer).
  *
- * Se usa para notificar cuando pasa algo importante,
- * como la llegada de luchadores o el final del combate.
- *
- * Esto permite que el controlador no dependa directamente de la vista.
+ * @author Grupo Programacion Avanzada
  */
 public interface ICombateObservador {
 
     /**
-     * Se ejecuta cuando un luchador llega al dohyo.
-     *
+     * Un luchador llego al dohyo.
      * @param nombre nombre del luchador
-     * @param peso peso del luchador
-     * @param indice posición en el dohyo (0 = primero, 1 = segundo)
+     * @param peso   peso del luchador
+     * @param indice posicion en el dohyo (0 o 1)
      */
     void onLuchadorLlego(String nombre, double peso, int indice);
 
     /**
-     * Se ejecuta cuando ya están los dos luchadores
-     * y el combate comienza.
-     *
-     * @param nombreLuchador1 nombre del primer luchador
-     * @param nombreLuchador2 nombre del segundo luchador
+     * Los dos luchadores estan listos y el combate inicia.
+     * @param nombre1 nombre del primer luchador
+     * @param nombre2 nombre del segundo luchador
      */
-    void onCombateIniciado(String nombreLuchador1, String nombreLuchador2);
+    void onCombateIniciado(String nombre1, String nombre2);
 
     /**
-     * Se ejecuta cuando un luchador realiza una técnica (kimarite).
-     *
-     * @param nombreLuchador nombre del luchador que atacó
-     * @param nombreKimarite nombre de la técnica usada
-     * @param expulsado indica si el oponente salió del dohyo
+     * Un luchador ejecuto una tecnica.
+     * @param luchador  nombre del atacante
+     * @param kimarite  nombre de la tecnica
+     * @param expulsado true si el oponente salio del dohyo
      */
-    void onKimariteEjecutado(String nombreLuchador,
-                              String nombreKimarite,
-                              boolean expulsado);
+    void onKimariteEjecutado(String luchador, String kimarite, boolean expulsado);
 
     /**
-     * Se ejecuta cuando el combate termina y ya hay un ganador.
-     *
-     * @param nombreGanador nombre del luchador ganador
-     * @param victoriasGanador número de victorias acumuladas
+     * El combate termino con un ganador.
+     * @param ganador   nombre del ganador
+     * @param victorias total de victorias del ganador
      */
-    void onCombateTerminado(String nombreGanador, int victoriasGanador);
+    void onCombateTerminado(String ganador, int victorias);
 }

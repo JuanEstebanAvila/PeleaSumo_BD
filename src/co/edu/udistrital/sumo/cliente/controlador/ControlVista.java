@@ -1,105 +1,99 @@
-//Pase el código del anterior proyecto a este clase que controla la vista (falta arreglarlo)
 package co.edu.udistrital.sumo.cliente.controlador;
 
+import co.edu.udistrital.sumo.cliente.vista.VistaCliente;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.util.List;
 
 /**
+ * Gestiona la VistaCliente y registra los eventos de los botones.
+ * Implementa ActionListener y diferencia eventos por fuente (e.getSource()),
+ * cumpliendo la separacion evento/listener/performed del enunciado.
+ * Delega toda la logica al ControlPrincipalC.
  *
- * @author User
+ * @author Grupo Programacion Avanzada
  */
-public class ControlVista {
-    package co.edu.udistrital.sumo.controlador.cliente;
+public class ControlVista implements ActionListener {
 
-import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
-
-/**
- * Acción desencadenada al presionar "Cargar Kimarites" en la vista del cliente.
- *
- * Propósito: Desacoplar el evento del botón de la lógica de negocio,
- * delegando completamente al {@link ControladorCliente}.
- * Cumple la separación evento/listener/performed exigida por el taller.
- * Se comunica con: {@link ControladorCliente} (único receptor de la acción).
- * Principio SOLID:
- * S — única responsabilidad: delegar la carga de kimarites al controlador.
- *
- * @author Grupo Programacióna avanzada 
- * @version 2.6
- * @see ControladorCliente
- * @see AccionConectar
- */
-public class AccionCargarKimarites implements ActionListener {
-
-    //Controlador del cliente al que se delega la acción
-    private final ControladorCliente controlador;
+    private final ControlPrincipalC cp;
+    private final VistaCliente      vista;
 
     /**
-     * Construye la acción con referencia al controlador del cliente.
-     *
-     * @param controlador controlador que gestionará la carga del archivo
+     * Crea la vista, registra esta clase como listener y la muestra.
+     * @param cp controlador principal del cliente
      */
-    public AccionCargarKimarites(ControladorCliente controlador) {
-        this.controlador = controlador;
+    public ControlVista(ControlPrincipalC cp) {
+        this.cp    = cp;
+        this.vista = new VistaCliente();
+        vista.getBtnCargar().addActionListener(this);
+        vista.getBtnConectar().addActionListener(this);
+        vista.setVisible(true);
     }
 
     /**
-     * Invocado por Swing cuando el usuario presiona el botón.
-     * Delega al controlador para obtener la ruta del archivo y cargar los kimarites.
-     *
-     * @param e evento de acción generado por el botón
+     * Maneja los eventos de los botones.
+     * Diferencia por fuente y delega al controlador.
+     * @param e evento generado por un boton
      */
     @Override
     public void actionPerformed(ActionEvent e) {
-        controlador.cargarKimarites();
-    }
-}
-
-
-package co.edu.udistrital.sumo.controlador.cliente;
-
-import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
-
-/**
- * Acción desencadenada al presionar "Conectar al Servidor" en la vista del cliente.
- *
- * Propósito: Desacoplar el evento del botón de la lógica de conexión,
- * delegando completamente al {@link ControladorCliente}.
- * Cumple la separación evento/listener/performed exigida por el taller.
- * Se comunica con: {@link ControladorCliente} (único receptor de la acción).
- * Principio SOLID:
- * S — única responsabilidad: delegar la conexión al servidor al controlador.
- *
- * @author Grupo Programación avanzada
- * @version 2.2
- * @see ControladorCliente
- * @see AccionCargarKimarites
- */
-public class AccionConectar implements ActionListener {
-
-    //Controlador del cliente al que se delega la acción
-    private final ControladorCliente controlador;
-
-    /**
-     * Construye la acción con referencia al controlador del cliente.
-     *
-     * @param controlador controlador que ejecutará la lógica de conexión
-     */
-    public AccionConectar(ControladorCliente controlador) {
-        this.controlador = controlador;
+        if (e.getSource() == vista.getBtnCargar()) {
+            // La vista gestiona el JFileChooser y retorna la ruta
+            String ruta = vista.seleccionarProperties();
+            if (ruta != null) {
+                cp.cargarKimarites(ruta);
+            }
+        } else if (e.getSource() == vista.getBtnConectar()) {
+            String nombre = vista.getNombre();
+            double peso   = 0;
+            try {
+                peso = Double.parseDouble(vista.getPeso().trim());
+            } catch (NumberFormatException ex) {
+                mostrarMensaje("El peso debe ser un numero valido.");
+                return;
+            }
+            List<String> seleccionados = vista.getKimaritesSeleccionados();
+            cp.conectar(nombre, peso, seleccionados);
+        }
     }
 
     /**
-     * Invocado por Swing cuando el usuario presiona el botón.
-     * Delega al controlador para validar datos e iniciar la conexión al servidor.
-     *
-     * @param e evento de acción generado por el botón
+     * Carga los kimarites en la lista de la vista.
+     * @param kimarites lista de tecnicas
      */
-    @Override
-    public void actionPerformed(ActionEvent e) {
-        controlador.conectarAlServidor();
+    public void mostrarKimarites(List<String> kimarites) {
+        vista.cargarKimarites(kimarites);
     }
-}
 
+    /**
+     * Muestra un mensaje informativo al usuario.
+     * @param msg mensaje a mostrar
+     */
+    public void mostrarMensaje(String msg) {
+        vista.mostrarMensaje(msg);
+    }
+
+    /**
+     * Actualiza el texto de estado en la barra inferior.
+     * @param msg texto de estado
+     */
+    public void mostrarEstado(String msg) {
+        vista.mostrarEstado(msg);
+    }
+
+    /**
+     * Habilita o deshabilita el boton de conectar.
+     * @param habilitar true para habilitar
+     */
+    public void habilitarConectar(boolean habilitar) {
+        vista.setBtnConectarHabilitado(habilitar);
+    }
+
+    /**
+     * Muestra el resultado del combate y cierra la ventana.
+     * @param gano true si el luchador gano
+     */
+    public void mostrarResultado(boolean gano) {
+        vista.mostrarResultado(gano);
+    }
 }

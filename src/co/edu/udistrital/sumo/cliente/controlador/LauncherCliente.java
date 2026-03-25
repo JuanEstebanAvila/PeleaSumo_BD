@@ -1,16 +1,14 @@
-/*
- * Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
- * Click nbfs://nbhost/SystemFileSystem/Templates/Classes/Class.java to edit this template
- */
 package co.edu.udistrital.sumo.cliente.controlador;
 
 /**
+ * Punto de entrada del cliente.
+ * Solo crea el ControlPrincipalC — nada mas.
  *
- * @author User
+ * @author Grupo Programacion Avanzada
  */
 public class LauncherCliente {
-    public static void main(String[] args){
+
+    public static void main(String[] args) {
         new ControlPrincipalC();
     }
-    
 }

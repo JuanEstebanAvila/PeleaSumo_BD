@@ -1,57 +1,60 @@
 package co.edu.udistrital.sumo.servidor.modelo.conexiones;
 
+import java.io.FileInputStream;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
-import java.io.FileInputStream;
 import java.util.Properties;
 
 /**
- * Gestiona la conexion con la base de datos MySQL del servidor.
- * Las credenciales se cargan desde un archivo properties externo
- * para evitar datos quemados en el codigo.
+ * Gestiona la conexion con la base de datos MySQL.
+ * Carga las credenciales desde el archivo properties del servidor.
  *
- * El archivo properties debe contener:
- * db.url, db.usuario, db.contrasena
+ * Claves esperadas en el properties:
+ *   BD.URL=jdbc:mysql://localhost:3306/sumo
+ *   BD.USER=root
+ *   BD.PASSWORD=
+ *
+ * PROHIBIDO: System.out, JOptionPane, logica de negocio.
  *
  * @author Grupo Programacion Avanzada
  */
 public class ConexionBD {
 
-    private static String URL;
-    private static String USER;
-    private static String PASSWORD;
+    private static String url;
+    private static String usuario;
+    private static String contrasena;
 
     /**
-     * Carga las credenciales de conexion desde el archivo properties.
-     * Debe invocarse antes de cualquier llamada a conectar().
+     * Carga las credenciales desde el archivo properties.
+     * Debe llamarse antes de conectar().
      *
-     * @param ruta ruta absoluta del archivo properties
+     * @param ruta ruta del archivo properties del servidor
      */
     public static void cargarCredenciales(String ruta) {
         Properties props = new Properties();
         try (FileInputStream fis = new FileInputStream(ruta)) {
             props.load(fis);
-            URL= props.getProperty("BD.URL");
-            USER= props.getProperty("BD.USER");
-            PASSWORD= props.getProperty("BD.PASSWORD");
+            url       = props.getProperty("BD.URL");
+            usuario   = props.getProperty("BD.USER");
+            contrasena = props.getProperty("BD.PASSWORD");
         } catch (Exception e) {
-            throw new RuntimeException("Error al leer credenciales: " + ruta, e);
+            throw new RuntimeException("No se pudo leer las credenciales: " + ruta, e);
         }
     }
 
     /**
-     * Abre y retorna una nueva conexion con la base de datos.
-     * Requiere que cargarCredenciales() haya sido invocado previamente.
+     * Abre y retorna una nueva conexion a la base de datos.
+     * Requiere haber llamado cargarCredenciales() primero.
      *
-     * @return conexion activa con la base de datos
+     * @return conexion activa
      */
     public static Connection conectar() {
-        if (URL == null ) {
-            throw new IllegalStateException("Credenciales no cargadas");
+        if (url == null) {
+            throw new IllegalStateException("Credenciales no cargadas. Llame cargarCredenciales().");
         }
         try {
-            return DriverManager.getConnection(URL, USER, PASSWORD);
+            return DriverManager.getConnection(url, usuario, contrasena);
         } catch (SQLException e) {
             throw new RuntimeException("No se pudo conectar a la base de datos", e);
         }

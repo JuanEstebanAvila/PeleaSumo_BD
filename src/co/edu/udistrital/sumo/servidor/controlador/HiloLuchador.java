@@ -1,4 +1,7 @@
-//Copiada del anterior proyecto (ARREGLAR)
+package co.edu.udistrital.sumo.servidor.controlador;
+
+import co.edu.udistrital.sumo.servidor.modelo.Rikishi;
+import co.edu.udistrital.sumo.servidor.modelo.interfaces.IArbitro;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
@@ -7,137 +10,157 @@ import java.net.Socket;
 import java.util.concurrent.CountDownLatch;
 
 /**
- * Hilo del servidor que atiende a un luchador conectado por socket.
+ * Hilo del servidor que atiende a un cliente conectado.
+ * Flujo:
+ *   1. Lee datos del cliente: "nombre|peso|k1,k2,..."
+ *   2. Notifica al ControlPrincipalS para guardar en BD.
+ *   3. Espera ser asignado a un combate (latchAsignacion).
+ *   4. Si tiene Dohyo asignado: combate en el Dohyo.
+ *   5. Envia "GANASTE" o "PERDISTE" al cliente.
+ *   6. Espera "LISTO" y notifica al ControlPrincipalS que termino.
  *
- * Protocolo:
- *   Cliente -> Servidor: "nombre|peso|k1,k2,k3,..."
- *   Servidor -> Cliente: "GANASTE" o "PERDISTE"
- *   Cliente -> Servidor: "LISTO" (confirmacion de cierre)
+ * PROHIBIDO: logica de combate, SQL, Swing.
  *
- * PROHIBIDO: logica de combate, Dohyo directo, componentes Swing.
- *
- * @author Grupo Programación avanzada
- * @version 2.6
+ * @author Grupo Programacion Avanzada
  */
 public class HiloLuchador extends Thread {
 
-    private static final int PAUSA_MIN_MS = 300; //Colocamos un mínimo de tiempo de espera para poder apresiar la vista
-    private static final int PAUSA_MAX_MS = 500;
+    // Pausa aleatoria entre turnos (enunciado: esperas aleatorias, max 500ms)
+    private static final int PAUSA_MIN = 100;
+    private static final int PAUSA_MAX = 400;
 
-    private final Socket       socketCliente;
-    // Depende de IArbitro (abstraccion), no de ControladorDohyo (concrecion) — D
-    private final IArbitro     arbitro;
-    private final int          indice;
-    private final CountDownLatch latchCierre;
-    private Rikishi rikishi;
+    private final Socket           socket;
+    private final ControlPrincipalS cp;
+
+    private Rikishi  rikishi;
+    private IArbitro dohyo;
+    private int      indiceDohyo;
+    private String   resultadoFinal;  // "GANASTE" o "PERDISTE"
+
+    // El ControlPrincipalS llama asignarCombate() o notificarSinCombate()
+    // para despertar a este hilo despues de registrarlo en la BD
+    private final CountDownLatch latchAsignacion = new CountDownLatch(1);
+
+    // Latch que ControlPrincipalS espera para saber cuando este hilo termino
+    private CountDownLatch latchFin;
 
     /**
-     * @param socketCliente  socket activo del cliente
-     * @param arbitro        instancia COMPARTIDA del arbitro del combate (IArbitro)
-     * @param indice         posicion del luchador (0 o 1)
-     * @param latchCierre    contador compartido con ControladorServidor
+     * Crea el hilo para atender al cliente conectado.
+     * @param socket socket activo con el cliente
+     * @param cp     controlador principal del servidor
      */
-    public HiloLuchador(Socket socketCliente,
-                         IArbitro arbitro,
-                         int indice,
-                         CountDownLatch latchCierre) {
-        super("HiloLuchador-" + indice);
-        this.socketCliente = socketCliente;
-        this.arbitro       = arbitro;
-        this.indice        = indice;
-        this.latchCierre   = latchCierre;
+    public HiloLuchador(Socket socket, ControlPrincipalS cp) {
+        this.socket = socket;
+        this.cp     = cp;
+    }
+
+    /**
+     * Asigna un Dohyo a este hilo para que participe en un combate.
+     * Despierta al hilo que espera en latchAsignacion.
+     * @param dohyo    dohyo del combate
+     * @param indice   posicion 0 o 1
+     * @param latchFin latch que decrementar al terminar
+     */
+    public void asignarCombate(IArbitro dohyo, int indice, CountDownLatch latchFin) {
+        this.dohyo       = dohyo;
+        this.indiceDohyo = indice;
+        this.latchFin    = latchFin;
+        latchAsignacion.countDown();
+    }
+
+    /**
+     * Notifica a este hilo que no combatira.
+     * Le envia "SIN_COMBATE" al cliente para que cierre.
+     * @param latchFin latch que decrementar al terminar
+     */
+    public void notificarSinCombate(CountDownLatch latchFin) {
+        this.resultadoFinal = "SIN_COMBATE";
+        this.latchFin       = latchFin;
+        latchAsignacion.countDown();
     }
 
     @Override
     public void run() {
-        // Bandera: true solo cuando se recibio LISTO del cliente correctamente
-        boolean listoRecibido = false;
-
         try (
             BufferedReader entrada = new BufferedReader(
-                new InputStreamReader(socketCliente.getInputStream()));
-            PrintWriter salida = new PrintWriter(
-                socketCliente.getOutputStream(), true)
+                new InputStreamReader(socket.getInputStream()));
+            PrintWriter salida = new PrintWriter(socket.getOutputStream(), true)
         ) {
-            // Paso 1: Leer datos del luchador
-            String lineaDatos = entrada.readLine();
-            if (lineaDatos == null || lineaDatos.isEmpty()) return;
+            // Paso 1: leer datos del cliente
+            String linea = entrada.readLine();
+            if (linea == null || linea.isEmpty()) return;
 
-            // Paso 2: Construir Rikishi
-            rikishi = parsearRikishi(lineaDatos);
+            // Paso 2: construir Rikishi y notificar al controlador para guardar en BD
+            rikishi = parsearRikishi(linea);
+            cp.registrarLuchador(this);
 
-            // Paso 3: Subir al dohyo
-            arbitro.subirLuchador(rikishi, indice);
+            // Paso 3: esperar asignacion de combate o resultado directo
+            latchAsignacion.await();
 
-            // Paso 4: Esperar al oponente
-            arbitro.esperarAmbosLuchadores();
+            // Paso 4: si tiene dohyo, combatir
+            if (dohyo != null) {
+                dohyo.subirLuchador(rikishi, indiceDohyo);
+                dohyo.esperarAmbosLuchadores();
 
-            // Paso 5: Bucle de combate con pausa aleatoria entre turnos
-            while (!arbitro.isCombateTerminado()) {
-                int pausa = PAUSA_MIN_MS + (int)(Math.random() * (PAUSA_MAX_MS - PAUSA_MIN_MS));
-                Thread.sleep(pausa);
-                if (!arbitro.isCombateTerminado()) {
-                    arbitro.ejecutarTurno(indice);
+                while (!dohyo.isCombateTerminado()) {
+                    int pausa = PAUSA_MIN + (int)(Math.random() * (PAUSA_MAX - PAUSA_MIN));
+                    Thread.sleep(pausa);
+                    if (!dohyo.isCombateTerminado()) {
+                        dohyo.ejecutarTurno(indiceDohyo);
+                    }
                 }
+
+                Rikishi ganador = dohyo.getGanador();
+                resultadoFinal = (ganador != null
+                    && ganador.getNombre().equals(rikishi.getNombre()))
+                    ? "GANASTE" : "PERDISTE";
             }
 
-            // Paso 6: Enviar resultado al cliente
-            Rikishi ganador = arbitro.getGanador();
-            if (ganador != null && ganador.getNombre().equals(rikishi.getNombre())) {
-                salida.println("GANASTE");
-            } else {
-                salida.println("PERDISTE");
-            }
+            // Paso 5: enviar resultado al cliente
+            salida.println(resultadoFinal);
 
-            // Paso 7: Esperar LISTO del cliente (usuario presiono OK en su dialog)
-            String confirmacion = entrada.readLine();
-            if ("LISTO".equals(confirmacion)) {
-                listoRecibido = true;
-            }
+            // Paso 6: esperar confirmacion LISTO del cliente
+            entrada.readLine();
 
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
         } catch (IOException e) {
-            // Error de red: el finally limpia
+            // Error de red: el finally libera el latch
         } catch (RuntimeException e) {
-            // NPE u otro error inesperado: el finally limpia para no colgar el servidor
+            // NPE u otro error: el finally libera el latch
         } finally {
             cerrarSocket();
-            // Se llama siempre para no colgar el latch del servidor.
-            // listoRecibido indica si fue flujo normal (true) o error (false).
-            latchCierre.countDown();
+            if (latchFin != null) latchFin.countDown();
         }
     }
 
     /**
-     * Parsea "nombre|peso|k1,k2,k3" y construye un Rikishi.
+     * Parsea "nombre|peso|k1,k2,k3" y construye el Rikishi.
      */
     private Rikishi parsearRikishi(String linea) {
         String[] partes = linea.split("\\|");
         String nombre = partes.length > 0 ? partes[0].trim() : "Desconocido";
-        double peso = 0.0;
+        double peso   = 0.0;
         if (partes.length > 1) {
             try { peso = Double.parseDouble(partes[1].trim()); }
             catch (NumberFormatException ignored) {}
         }
-        Rikishi nuevo = new Rikishi(nombre, peso);
+        String[] kimarites = new String[0];
         if (partes.length > 2 && !partes[2].trim().isEmpty()) {
-            for (String k : partes[2].trim().split(",")) {
-                if (!k.trim().isEmpty())
-                    nuevo.getKimarites().add(new Kimarite(k.trim()));
-            }
+            kimarites = partes[2].trim().split(",");
+            // limpiar espacios de cada kimarite
+            for (int i = 0; i < kimarites.length; i++)
+                kimarites[i] = kimarites[i].trim();
         }
-        return nuevo;
+        return new Rikishi(nombre, peso, 0, kimarites);
     }
 
-    //Cerramos el socket
     private void cerrarSocket() {
         try {
-            if (socketCliente != null && !socketCliente.isClosed())
-                socketCliente.close();
+            if (socket != null && !socket.isClosed()) socket.close();
         } catch (IOException ignored) {}
     }
 
+    /** @return el Rikishi de este hilo */
     public Rikishi getRikishi() { return rikishi; }
 }
-
