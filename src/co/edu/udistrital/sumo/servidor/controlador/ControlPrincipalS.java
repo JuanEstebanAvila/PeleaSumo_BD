@@ -4,6 +4,10 @@ import co.edu.udistrital.sumo.servidor.modelo.Rikishi;
 import co.edu.udistrital.sumo.servidor.modelo.conexiones.ConexionAleatoria;
 import co.edu.udistrital.sumo.servidor.modelo.conexiones.ConexionProperties;
 import co.edu.udistrital.sumo.servidor.modelo.conexiones.ConexionServidor;
+
+import javax.swing.JFileChooser;
+import javax.swing.filechooser.FileNameExtensionFilter;
+import java.io.File;
 import java.io.IOException;
 import java.net.Socket;
 import java.util.ArrayList;
@@ -13,102 +17,160 @@ import java.util.concurrent.CountDownLatch;
 
 /**
  * Controlador principal del servidor.
- * Coordina: aceptacion de clientes, registro en BD, 3 combates secuenciales,
- * escritura en RAF y notificacion de resultados.
  *
- * Flujo general:
- *   1. Carga propiedades (BD y puerto) desde el archivo seleccionado.
- *   2. Acepta conexiones indefinidamente hasta tener al menos 6 en BD.
- *   3. Organiza 3 combates:
- *        - Combate 1: luchadores A y B (aleatorios de los disponibles).
- *        - Combate 2: ganador vs C (aleatorio de los disponibles).
- *        - Combate 3: ganador vs D (aleatorio de los disponibles).
- *   4. Al final de cada combate guarda en RAF (datos de BD + G/P del servidor).
- *   5. Notifica resultado a cada cliente via socket.
- *   6. Cuando todos los clientes envian LISTO, muestra el RAF por consola y cierra.
+ * Flujo segun enunciado:
+ *   1. Acepta exactamente 6 conexiones de clientes.
+ *   2. Registra cada luchador en la BD.
+ *   3. Selecciona 2 aleatorios para el primer combate.
+ *   4. El ganador se enfrenta al siguiente aleatorio de los pendientes.
+ *   5. Repite hasta que TODOS los luchadores hayan combatido (5 combates).
+ *   6. Datos del RAF vienen de consulta a la BD.
+ *   7. El campo G/P lo agrega el servidor.
+ *
+ * CLAVE: la seleccion de combatientes usa una LISTA EN MEMORIA
+ * (luchadores pendientes), NO depende de consultarDisponibles() de la BD.
+ * La BD se usa para persistencia y para consultar datos del RAF.
  *
  * @author Grupo Programacion Avanzada
  */
 public class ControlPrincipalS {
 
-    // Minimo de luchadores requeridos antes de iniciar combates
-    private static final int MIN_LUCHADORES = 6;
-    // Numero de combates del torneo
-    private static final int NUM_COMBATES   = 3;
+    private static final int TOTAL_LUCHADORES = 6;
+
+    // Con 6 luchadores en formato carry-over: 5 combates
+    // Combate 1: A vs B, Combate 2: ganador vs C, ... Combate 5: ganador vs F
+    private static final int NUM_COMBATES = TOTAL_LUCHADORES - 1;
 
     private final ControlVistaS    controlVista;
     private final ControlRikishi   controlRikishi;
     private final ConexionServidor cnxServidor;
 
-    // Hilos de todos los clientes conectados
     private final List<HiloLuchador> hilosConectados = new ArrayList<>();
 
-    /**
-     * Crea el controlador principal cargando la configuracion desde el properties.
-     * @param rutaProperties ruta del archivo properties del servidor
-     */
-    public ControlPrincipalS(String rutaProperties) {
+    // Lista EN MEMORIA de luchadores pendientes (no depende de la BD)
+    private final List<Rikishi> pendientes = new ArrayList<>();
+
+    private volatile int contadorConectados = 0;
+
+    public ControlPrincipalS() {
+        String rutaProperties = seleccionarProperties();
+        if (rutaProperties == null) {
+            System.exit(0);
+            this.controlVista   = null;
+            this.controlRikishi = null;
+            this.cnxServidor    = null;
+            return;
+        }
+
         int puerto = ConexionProperties.cargar(rutaProperties);
         this.controlVista   = new ControlVistaS();
-        this.controlRikishi = new ControlRikishi(this);
+        this.controlRikishi = new ControlRikishi();
         this.cnxServidor    = new ConexionServidor(puerto);
+
+        iniciar();
     }
 
-    /**
-     * Inicia el servidor: acepta clientes, espera el minimo y ejecuta los combates.
-     * Se ejecuta en un hilo separado para no bloquear el EDT de Swing.
-     */
-    public void iniciar() {
+    private String seleccionarProperties() {
+        JFileChooser fc = new JFileChooser(new File("Data/Servidor/"));
+        fc.setFileFilter(new FileNameExtensionFilter(
+                "Archivo de propiedades", "properties"));
+        fc.setDialogTitle("Seleccione el properties del servidor");
+        int resultado = fc.showOpenDialog(null);
+        if (resultado == JFileChooser.APPROVE_OPTION) {
+            return fc.getSelectedFile().getAbsolutePath();
+        }
+        return null;
+    }
+
+    private void iniciar() {
         Thread hiloServidor = new Thread(this::ejecutar, "HiloServidorPrincipal");
         hiloServidor.setDaemon(false);
         hiloServidor.start();
     }
 
-    /**
-     * Logica principal del servidor ejecutada en segundo plano.
-     */
     private void ejecutar() {
         try {
             cnxServidor.iniciar();
             controlVista.mostrar("Servidor iniciado. Esperando luchadores...");
+            controlVista.actualizarEstado(
+                    "Esperando " + TOTAL_LUCHADORES + " luchadores...");
 
-            // Aceptar clientes hasta tener el minimo en BD
-            while (controlRikishi.contarRegistrados() < MIN_LUCHADORES) {
+            // Aceptar exactamente 6 conexiones
+            while (contadorConectados < TOTAL_LUCHADORES) {
                 Socket socket = cnxServidor.aceptarConexion();
-                controlVista.mostrar("Cliente conectado: " + socket.getInetAddress().getHostAddress());
+                controlVista.mostrar("Cliente conectado: "
+                        + socket.getInetAddress().getHostAddress());
+
                 HiloLuchador hilo = new HiloLuchador(socket, this);
                 hilosConectados.add(hilo);
                 hilo.start();
-                // Esperar un momento para que el hilo registre al luchador en BD
-                Thread.sleep(800);
+
+                Thread.sleep(1000);
             }
 
             cnxServidor.cerrar();
-            controlVista.mostrar("Minimo de " + MIN_LUCHADORES + " luchadores alcanzado. Iniciando combates.");
+            controlVista.mostrar(
+                    TOTAL_LUCHADORES + " luchadores conectados. Iniciando torneo...");
+            controlVista.actualizarEstado("Todos conectados. Preparando combates...");
 
-            // Ejecutar los 3 combates secuenciales
+            Thread.sleep(2000);
+
+            // Limpiar archivo RAF de torneos anteriores
+            ConexionAleatoria.limpiar();
+
+            // Preparar lista de pendientes en memoria (copia de los registrados)
+            synchronized (this) {
+                pendientes.clear();
+                for (HiloLuchador h : hilosConectados) {
+                    if (h.getRikishi() != null) {
+                        pendientes.add(h.getRikishi());
+                    }
+                }
+            }
+
+            // Mezclar aleatoriamente
+            Collections.shuffle(pendientes);
+
+            controlVista.mostrar("Luchadores en el torneo: " + pendientes.size());
+
+            // Ejecutar todos los combates hasta agotar pendientes
             String nombreGanadorActual = null;
             for (int numCombate = 1; numCombate <= NUM_COMBATES; numCombate++) {
                 nombreGanadorActual = ejecutarCombate(numCombate, nombreGanadorActual);
                 if (nombreGanadorActual == null) break;
-                Thread.sleep(2000); // pausa entre combates para visualizacion
+                if (numCombate < NUM_COMBATES) {
+                    Thread.sleep(3000); // pausa entre combates
+                }
+            }
+
+            // Mostrar campeon
+            if (nombreGanadorActual != null) {
+                controlVista.mostrar("=== CAMPEON DEL TORNEO: "
+                        + nombreGanadorActual + " ===");
             }
 
             // Mostrar contenido del RAF por consola
-            controlVista.mostrar("=== Resultados del torneo ===");
+            Thread.sleep(1000);
+            controlVista.mostrar("=== Leyendo archivo de acceso aleatorio ===");
             try {
                 String contenidoRAF = ConexionAleatoria.leerTodos();
-                System.out.println("\n=== RESULTADOS DEL TORNEO (Archivo de Acceso Aleatorio) ===");
-                System.out.println(contenidoRAF);
-                System.out.println("============================================================");
+                if (contenidoRAF != null && !contenidoRAF.isEmpty()) {
+                    controlVista.mostrar(contenidoRAF);
+                    System.out.println("\n=== RESULTADOS DEL TORNEO (RAF) ===");
+                    System.out.println(contenidoRAF);
+                    System.out.println("====================================");
+                } else {
+                    controlVista.mostrar("El archivo RAF esta vacio.");
+                    System.out.println("El archivo RAF esta vacio.");
+                }
             } catch (IOException e) {
-                controlVista.mostrar("Error al leer el archivo de resultados.");
+                controlVista.mostrar("Error al leer RAF: " + e.getMessage());
             }
 
             // Notificar a clientes que no combatieron
             notificarSinCombate();
 
-            // Cerrar la vista del servidor
+            Thread.sleep(3000);
             controlVista.cerrar();
 
         } catch (IOException e) {
@@ -119,136 +181,182 @@ public class ControlPrincipalS {
     }
 
     /**
-     * Ejecuta un combate entre dos luchadores seleccionados de la BD.
-     * Si hay ganador previo, lo enfrenta contra uno nuevo.
-     *
-     * @param numCombate       numero del combate (1, 2 o 3)
-     * @param nombreGanadorAnt nombre del ganador del combate anterior (null en el primero)
-     * @return nombre del ganador de este combate, o null si no hay disponibles
+     * Ejecuta un combate. Usa la lista EN MEMORIA de pendientes,
+     * NO depende de consultarDisponibles() de la BD.
      */
     private String ejecutarCombate(int numCombate, String nombreGanadorAnt)
             throws IOException, InterruptedException {
 
         controlVista.mostrar("=== Preparando Combate " + numCombate + " ===");
-
-        // Obtener luchadores disponibles de la BD
-        ArrayList<Rikishi> disponibles = controlRikishi.consultarDisponibles();
-        if (disponibles.isEmpty()) {
-            controlVista.mostrar("No hay luchadores disponibles para el combate " + numCombate);
-            return nombreGanadorAnt;
-        }
-
-        // Mezclar aleatoriamente para seleccion aleatoria
-        Collections.shuffle(disponibles);
+        controlVista.resetearSeleccion();
 
         Rikishi luchador1;
         Rikishi luchador2;
 
         if (nombreGanadorAnt != null) {
-            // El ganador anterior es uno de los dos
-            Rikishi ganadorAnterior = controlRikishi.consultarDisponibles()
-                    .stream()
-                    .filter(r -> r.getNombre().equals(nombreGanadorAnt))
-                    .findFirst()
-                    .orElse(null);
-            if (ganadorAnterior == null || disponibles.isEmpty()) {
-                controlVista.mostrar("No se puede preparar el combate " + numCombate);
-                return nombreGanadorAnt;
-            }
-            luchador1 = ganadorAnterior;
-            luchador2 = disponibles.get(0);
-        } else {
-            if (disponibles.size() < 2) {
-                controlVista.mostrar("No hay suficientes luchadores para el combate 1.");
+            // El ganador anterior vs el siguiente pendiente
+            luchador1 = buscarRikishiEnMemoria(nombreGanadorAnt);
+            if (luchador1 == null) {
+                controlVista.mostrar("Error: no se encontro al ganador anterior.");
                 return null;
             }
-            luchador1 = disponibles.get(0);
-            luchador2 = disponibles.get(1);
+            if (pendientes.isEmpty()) {
+                controlVista.mostrar("No hay mas pendientes para combatir.");
+                return nombreGanadorAnt;
+            }
+            luchador2 = pendientes.remove(0); // tomar el siguiente pendiente
+        } else {
+            // Primer combate: tomar 2 de los pendientes
+            if (pendientes.size() < 2) {
+                controlVista.mostrar("No hay suficientes luchadores.");
+                return null;
+            }
+            luchador1 = pendientes.remove(0);
+            luchador2 = pendientes.remove(0);
         }
+
+        // Mostrar seleccion en grilla
+        controlVista.mostrarSeleccionCombatientes(
+                luchador1.getNombre(), luchador1.getPeso(),
+                luchador2.getNombre(), luchador2.getPeso());
+
+        Thread.sleep(2000);
 
         controlVista.mostrar("Combate " + numCombate + ": "
                 + luchador1.getNombre() + " vs " + luchador2.getNombre());
 
-        // Encontrar los hilos de estos luchadores
+        controlVista.mostrarLuchadorEnDohyo(
+                luchador1.getNombre(), luchador1.getPeso(), 0);
+        controlVista.mostrarLuchadorEnDohyo(
+                luchador2.getNombre(), luchador2.getPeso(), 1);
+        controlVista.mostrarInicioCombate(
+                luchador1.getNombre(), luchador2.getNombre());
+
+        // Encontrar los hilos
         HiloLuchador hilo1 = buscarHilo(luchador1.getNombre());
         HiloLuchador hilo2 = buscarHilo(luchador2.getNombre());
 
         if (hilo1 == null || hilo2 == null) {
-            controlVista.mostrar("Error: no se encontraron los hilos para el combate " + numCombate);
+            controlVista.mostrar(
+                    "Error: no se encontraron los hilos para el combate.");
             return nombreGanadorAnt;
         }
 
-        // Crear el Dohyo de este combate y registrar el observador
+        // Crear Dohyo y registrar observador
         Dohyo dohyo = new Dohyo();
         dohyo.agregarObservador(controlVista);
 
-        // Latch para esperar que los dos hilos terminen el combate
+        // Latch para esperar que ambos hilos terminen
         CountDownLatch latchCombate = new CountDownLatch(2);
 
-        // Asignar el Dohyo a los dos hilos (los despierta)
+        // Asignar combate (despierta a los hilos)
         hilo1.asignarCombate(dohyo, 0, latchCombate);
         hilo2.asignarCombate(dohyo, 1, latchCombate);
 
-        // Esperar a que los dos hilos terminen el combate y confirmen con LISTO
+        // Esperar a que terminen
         latchCombate.await();
 
-        // Determinar ganador (el Dohyo ya lo tiene)
+        // Determinar ganador
         Rikishi ganador  = dohyo.getGanador();
+        if (ganador == null) {
+            controlVista.mostrar("Error: el combate no tuvo ganador.");
+            return null;
+        }
+
         Rikishi perdedor = ganador.getNombre().equals(luchador1.getNombre())
                            ? luchador2 : luchador1;
 
-        // Actualizar victorias del ganador en BD
-        controlRikishi.actualizarVictorias(ganador.getNombre(), ganador.getVictorias());
+        controlVista.mostrar("GANADOR del combate " + numCombate + ": "
+                + ganador.getNombre() + " (victorias: " + ganador.getVictorias() + ")");
 
-        // Marcar al perdedor como participante (el ganador puede volver a combatir)
-        controlRikishi.marcarParticiparon(perdedor.getNombre(), "");
+        // Actualizar BD: victorias del ganador
+        controlRikishi.actualizarVictorias(
+                ganador.getNombre(), ganador.getVictorias());
 
-        // Guardar resultados en RAF: datos de la BD + G/P que agrega el servidor
-        Rikishi ganadorBD  = controlRikishi.consultarDisponibles()
-                .stream().filter(r -> r.getNombre().equals(ganador.getNombre()))
-                .findFirst().orElse(ganador);
-        Rikishi perdedorBD = buscarEnBD(perdedor.getNombre());
+        // Mostrar ganador en la vista
+        controlVista.mostrarGanador(ganador.getNombre(), ganador.getVictorias());
 
-        ConexionAleatoria.guardarResultado(
-            ganadorBD.getNombre(), ganadorBD.getPeso(),
-            ganador.getVictorias(), true, numCombate);
-        ConexionAleatoria.guardarResultado(
-            perdedorBD != null ? perdedorBD.getNombre() : perdedor.getNombre(),
-            perdedorBD != null ? perdedorBD.getPeso()   : perdedor.getPeso(),
-            perdedor.getVictorias(), false, numCombate);
+        // Marcar perdedor como participante en BD
+        controlRikishi.marcarParticipo(perdedor.getNombre());
 
-        controlVista.mostrar("Combate " + numCombate + " finalizado. Ganador: " + ganador.getNombre());
+        // Marcar perdedor en la grilla
+        controlVista.marcarLuchadorParticipo(perdedor.getNombre());
+
+        // Guardar en RAF: datos de la BD si es posible, sino de memoria
+        guardarEnRAF(ganador, perdedor, numCombate);
+
         return ganador.getNombre();
     }
 
     /**
-     * Busca un luchador en la BD por su nombre.
+     * Guarda los resultados en el archivo de acceso aleatorio.
+     * Intenta obtener los datos de la BD (como exige el enunciado).
+     * Si la BD falla, usa los datos en memoria como respaldo.
      */
-    private Rikishi buscarEnBD(String nombre) {
-        return controlRikishi.consultarDisponibles()
-                .stream().filter(r -> r.getNombre().equals(nombre))
-                .findFirst().orElse(null);
+    private void guardarEnRAF(Rikishi ganador, Rikishi perdedor,
+                              int numCombate) {
+        // Intentar consultar datos de la BD (enunciado: datos del RAF vienen de la BD)
+        Rikishi ganadorBD  = controlRikishi.consultarPorNombre(ganador.getNombre());
+        Rikishi perdedorBD = controlRikishi.consultarPorNombre(perdedor.getNombre());
+
+        // Si la BD no retorna datos, usar los de memoria
+        Rikishi gFinal = ganadorBD  != null ? ganadorBD  : ganador;
+        Rikishi pFinal = perdedorBD != null ? perdedorBD : perdedor;
+
+        try {
+            // El campo G/P lo agrega el servidor (no viene de la BD)
+            ConexionAleatoria.guardarResultado(
+                    gFinal.getNombre(), gFinal.getPeso(),
+                    ganador.getVictorias(), true, numCombate);
+            ConexionAleatoria.guardarResultado(
+                    pFinal.getNombre(), pFinal.getPeso(),
+                    perdedor.getVictorias(), false, numCombate);
+            controlVista.mostrar("Resultados del combate " + numCombate
+                    + " guardados en RAF.");
+        } catch (IOException e) {
+            controlVista.mostrar("Error al guardar en RAF: " + e.getMessage());
+        }
     }
 
     /**
-     * Notifica "SIN_COMBATE" a los hilos que no fueron asignados a ningun combate.
+     * Busca un Rikishi en memoria (hilosConectados), no en la BD.
+     */
+    private Rikishi buscarRikishiEnMemoria(String nombre) {
+        for (HiloLuchador h : hilosConectados) {
+            if (h.getRikishi() != null
+                    && h.getRikishi().getNombre().equals(nombre)) {
+                return h.getRikishi();
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Notifica SIN_COMBATE a los hilos que nunca fueron asignados.
      */
     private void notificarSinCombate() {
-        CountDownLatch latchRestantes = new CountDownLatch(0);
         List<HiloLuchador> sinAsignar = new ArrayList<>();
-
         for (HiloLuchador hilo : hilosConectados) {
-            if (hilo.getRikishi() != null && !hilo.isAlive()) continue;
-            // Hilo aun activo y sin asignar
+            if (hilo.isAlive() && !hilo.fueCombatiente()) {
+                sinAsignar.add(hilo);
+            }
         }
-        // Los hilos sin asignar estan esperando en latchAsignacion
-        // El ControlPrincipalS les envia SIN_COMBATE para liberar la espera
-        // (implementacion simplificada: en la sustentacion se puede explicar)
+        if (sinAsignar.isEmpty()) return;
+
+        CountDownLatch latchRestantes = new CountDownLatch(sinAsignar.size());
+        for (HiloLuchador hilo : sinAsignar) {
+            String nombre = hilo.getRikishi() != null
+                    ? hilo.getRikishi().getNombre() : "?";
+            controlVista.mostrar("Notificando SIN_COMBATE a: " + nombre);
+            hilo.notificarSinCombate(latchRestantes);
+        }
+        try {
+            latchRestantes.await();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
     }
 
-    /**
-     * Busca el hilo correspondiente a un luchador por nombre.
-     */
     private HiloLuchador buscarHilo(String nombre) {
         for (HiloLuchador h : hilosConectados) {
             if (h.getRikishi() != null
@@ -260,36 +368,28 @@ public class ControlPrincipalS {
     }
 
     /**
-     * Llamado por HiloLuchador cuando recibe los datos del cliente.
-     * Registra al luchador en la base de datos.
-     * @param hilo hilo que acaba de leer los datos del cliente
+     * Llamado por HiloLuchador al recibir datos del cliente.
+     * Actualiza la grilla PRIMERO, luego intenta guardar en BD.
      */
     public synchronized void registrarLuchador(HiloLuchador hilo) {
         Rikishi rikishi = hilo.getRikishi();
         if (rikishi != null) {
+            // PRIMERO la grilla (no depende de BD)
+            int slot = contadorConectados;
+            contadorConectados++;
+
+            controlVista.registrarLuchadorConectado(
+                    rikishi.getNombre(), rikishi.getPeso(), slot);
+
+            // DESPUES la BD (puede fallar)
             boolean guardado = controlRikishi.guardar(rikishi);
-            controlVista.mostrar("Luchador registrado en BD: " + rikishi.getNombre()
-                    + (guardado ? "" : " (error al guardar)"));
+            controlVista.mostrar("Luchador " + (guardado ? "guardado" : "registrado")
+                    + " en BD: " + rikishi.getNombre()
+                    + (guardado ? "" : " (error BD - combate continua en memoria)"));
         }
     }
 
-    /**
-     * Llamado por HiloLuchador cuando termina completamente (despues de LISTO).
-     * Usado para monitoreo interno.
-     * @param hilo hilo que termino
-     */
     public synchronized void hiloTerminado(HiloLuchador hilo) {
-        // Monitoreo: se puede usar para logs o estadisticas
-    }
-
-    /**
-     * Delega una consulta a la BD desde un hilo.
-     * @param nombre nombre a buscar
-     * @return Rikishi encontrado o null
-     */
-    public Rikishi consultarLuchadorBD(String nombre) {
-        return controlRikishi.consultarDisponibles()
-                .stream().filter(r -> r.getNombre().equals(nombre))
-                .findFirst().orElse(null);
+        // Monitoreo
     }
 }
